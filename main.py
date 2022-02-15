@@ -12,54 +12,70 @@ screen_height = 800
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption('MazeRun')
 
+#define font
+font = pygame.font.SysFont('Bauhaus 93', 70)
+font_score = pygame.font.SysFont('Bauhaus 93', 30)
+
+#define colors
+white = (255, 255, 255)
+black = (0, 0, 0)
+
 #game variables
 tile_size = 25
 game_over = 0
 
 #load images
 bg_img = pygame.image.load('resources/images/back_img.png')
+restart_img = pygame.image.load('restart.png')
+
+#function to display text on screen by creating picture
+def draw_text(text, font, text_col, x, y):
+    img = font.render(text, True, text_col)
+    screen.blit(img, (x, y))
+
+#function for level reset
+def reset_level():
+    player.reset(150, screen_height - 50)
+    exit_group.empty()
+    coin_group.empty()
+    ladder_group.empty()
+    acid_group.empty()
+
+    world = World(world_data)
+
+    return world
+
+
+class Button():
+    def __init__(self, x, y, image): #coordinates for where button go and switchable image (restart, quit, etc)
+        self.image = image
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.clicked = False
+
+    def draw(self):
+        action = False
+
+        #get mouse position
+        pos = pygame.mouse.get_pos()
+
+        #check mouseover and clicked conditions
+        if self.rect.collidepoint(pos): #check for collision with point rather than rectangle or sprite
+            if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False: #0 left mouse 1 middle 2 right
+                action = True
+                self.clicked = True
+        if pygame.mouse.get_pressed()[0] == 0: #reset clicked to false
+            self.clicked = False
+
+        #draw button
+        screen.blit(self.image, self.rect)
+
+        return action
 
 class Player():
     def __init__(self, x, y):
-        #arrays for animations
-        self.images_right = []
-        self.images_left = []
-        self.images_climb = []
-        self.index = 0 #counter for image animation
-        self.counter = 0 #to slow the animation
-
-        #beginning image
-        begin_img = pygame.image.load('resources/images/player_img.png')
-        self.begin_img = pygame.transform.scale(begin_img, (tile_size, tile_size))
-        self.image = self.begin_img
-
-        #left and right images
-        for num in range(1, 3):
-           img_right = pygame.image.load(f'resources/images/step{num}_img.png')  #f {variable} inputs into string
-           img_right = pygame.transform.scale(img_right, (tile_size, tile_size)) #resizing character
-
-        #generating mirror image by flip | flip(image, y-axis mirror, x-axis mirror
-           img_left = pygame.transform.flip(img_right, True, False)
-           self.images_right.append(img_right)
-           self.images_left.append(img_left)
-
-        for num in range(1, 3):
-            img_climb = pygame.image.load(f'resources/images/climb{num}_img.png')  #f {variable} inputs into string
-            img_climb = pygame.transform.scale(img_climb, (tile_size, tile_size)) #resizing character
-            self.images_climb.append(img_climb)
-
-        self.rect = self.image.get_rect() #creates rectangle from image
-        #sets x and y of rectangle for image
-        self.rect.x = x
-        self.rect.y = y
-
-        #width and height for collision
-        self.width = self.image.get_width()
-        self.height = self.image.get_height()
-
-        self.vel_y = 0 #velocity variable
-        self.jumped = False
-        self.direction = 0 #for left, right, up, or down
+        self.reset(x, y)
 
     def update(self, game_over):
         #dx,dy for collision
@@ -165,6 +181,47 @@ class Player():
         #pygame.draw.rect(screen, (255, 255, 255), self.rect, 2)
 
         return game_over
+
+    def reset(self, x, y):
+        # arrays for animations
+        self.images_right = []
+        self.images_left = []
+        self.images_climb = []
+        self.index = 0  # counter for image animation
+        self.counter = 0  # to slow the animation
+
+        # beginning image
+        begin_img = pygame.image.load('resources/images/player_img.png')
+        self.begin_img = pygame.transform.scale(begin_img, (tile_size, tile_size))
+        self.image = self.begin_img
+
+        # left and right images
+        for num in range(1, 3):
+            img_right = pygame.image.load(f'resources/images/step{num}_img.png')  # f {variable} inputs into string
+            img_right = pygame.transform.scale(img_right, (tile_size, tile_size))  # resizing character
+
+            # generating mirror image by flip | flip(image, y-axis mirror, x-axis mirror
+            img_left = pygame.transform.flip(img_right, True, False)
+            self.images_right.append(img_right)
+            self.images_left.append(img_left)
+
+        for num in range(1, 3):
+            img_climb = pygame.image.load(f'resources/images/climb{num}_img.png')  # f {variable} inputs into string
+            img_climb = pygame.transform.scale(img_climb, (tile_size, tile_size))  # resizing character
+            self.images_climb.append(img_climb)
+
+        self.rect = self.image.get_rect()  # creates rectangle from image
+        # sets x and y of rectangle for image
+        self.rect.x = x
+        self.rect.y = y
+
+        # width and height for collision
+        self.width = self.image.get_width()
+        self.height = self.image.get_height()
+
+        self.vel_y = 0  # velocity variable
+        self.jumped = False
+        self.direction = 0  # for left, right, up, or down
 
 
 
@@ -292,6 +349,8 @@ world_data = [
 
 world = World(world_data)
 
+#create buttons
+restart_button = Button(screen_width // 2 - 100, screen_height //2 + 100, restart_img)
 
 run = True
 while run == True:
@@ -309,6 +368,20 @@ while run == True:
     coin_group.draw(screen)
     ladder_group.draw(screen)
     acid_group.draw(screen)
+
+    # if player dies
+    if game_over == -1:
+        if restart_button.draw():
+            world = reset_level()
+            game_over = 0
+
+    # if level completed
+    if game_over == 1:
+        draw_text('YOU WIN', font, white, (screen_width // 2) - 140, screen_height // 2)
+        # restart game
+        if restart_button.draw():
+            world = reset_level()
+            game_over = 0
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
